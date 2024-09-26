@@ -1,0 +1,2 @@
+#Enable coco for the sev test
+coco=1
