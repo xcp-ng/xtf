@@ -457,28 +457,30 @@ def interpret_result(logline):
 
     return "CRASH"
 
-
 def run_test_console(opts, test):
     """ Run a specific, obtaining results via xenconsole """
 
-    cmd = ['xl', 'create', '-p', test.cfg_path()]
+    # File to save xl dmesg logs
+    dmesg_log_file = "xl_dmesg.log"
+
+    cmd = ['xl', '-vvv', 'create', '-p', test.cfg_path()]
     if not opts.quiet:
         print("Executing '{0}'".format(" ".join(cmd)))
 
-    create = Popen(cmd, stdout = PIPE, stderr = PIPE)
-    _, stderr = create.communicate()
+    create = Popen(cmd, stdout=None, stderr=None)  # Output directly to the console
+    create.communicate()
 
     if create.returncode:
         if opts.quiet:
             print("Executing '{0}'".format(" ".join(cmd)))
-        print(stderr)
+        collect_xl_dmesg(dmesg_log_file)  # Collect dmesg on failure
         raise RunnerError("Failed to create VM")
 
     cmd = ['xl', 'console', test.vm_name()]
     if not opts.quiet:
         print("Executing '{0}'".format(" ".join(cmd)))
 
-    console = Popen(cmd, stdout = PIPE)
+    console = Popen(cmd, stdout=PIPE)
 
     cmd = ['xl', 'unpause', test.vm_name()]
     if not opts.quiet:
@@ -488,25 +490,45 @@ def run_test_console(opts, test):
     if rc:
         if opts.quiet:
             print("Executing '{0}'".format(" ".join(cmd)))
+        collect_xl_dmesg(dmesg_log_file)  # Collect dmesg on failure
         raise RunnerError("Failed to unpause VM")
 
     stdout, _ = console.communicate()
 
     if console.returncode:
+        collect_xl_dmesg(dmesg_log_file)  # Collect dmesg on failure
         raise RunnerError("Failed to obtain VM console")
-
     lines = stdout.splitlines()
 
     if lines:
         if not opts.quiet:
             print("\n".join(lines))
             print("")
-
     else:
         return "CRASH"
 
+    # Collect dmesg after successful operation for debugging purposes
+    collect_xl_dmesg(dmesg_log_file)
+
     return interpret_result(lines[-1])
 
+
+def collect_xl_dmesg(log_file):
+    """Collect xl dmesg and save to a file."""
+    cmd = ['xl', 'dmesg']
+    try:
+        with Popen(cmd, stdout=PIPE, stderr=PIPE, text=True) as proc:
+            dmesg_output, error_output = proc.communicate()
+
+            if proc.returncode == 0:
+                with open(log_file, "w") as f:
+                    f.write(dmesg_output)
+                print(f"xl dmesg logged to {log_file}")
+            else:
+                print("Failed to collect xl dmesg:")
+                print(error_output)
+    except Exception as e:
+        print(f"Error while collecting xl dmesg: {e}")
 
 def run_test_logfile(opts, test):
     """ Run a specific test, obtaining results from a logfile """
