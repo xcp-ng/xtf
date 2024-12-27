@@ -2,6 +2,11 @@
 
 #include <arch/page.h>
 
+/* AMD SEV C-bit */
+#define C_BIT (1 << 47)
+/* AMD SEV C-bit (higher long part) */
+#define C_BIT_HI (C_BIT << 32)
+
 #define PAGETABLE_START(sym)   \
         GLOBAL(sym)
 
@@ -24,7 +29,7 @@ PAGETABLE_START(pae_l1_identmap)
         .long 0, 0 /* Unmap page at 0 to catch errors with NULL pointers. */
         .rept PAE_L1_PT_ENTRIES - 1
         .long (PAE_IDX(pae_l1_identmap) << PAE_L1_PT_SHIFT) + _PAGE_LEAF
-        .long 0
+        .long C_BIT_HI
         .endr
 PAGETABLE_END(pae_l1_identmap)
 
@@ -34,7 +39,7 @@ PAGETABLE_START(pae_l2_identmap)
         .long 0
         .rept (4 * PAE_L2_PT_ENTRIES) - 1
         .long (PAE_IDX(pae_l2_identmap) << PAE_L2_PT_SHIFT) + _PAGE_SUPER
-        .long 0
+        .long C_BIT_HI
         .endr
 PAGETABLE_END(pae_l2_identmap)
 .Lpae_l2_identmap_end:
@@ -43,7 +48,7 @@ PAGETABLE_END(pae_l2_identmap)
 PAGETABLE_START(pae_l3_identmap)
         .rept 4
         .long pae_l2_identmap + (PAE_IDX(pae_l3_identmap) << PAGE_SHIFT) + _PAGE_NONLEAF
-        .long 0
+        .long C_BIT_HI
         .endr
         .fill PAE_L3_PT_ENTRIES - 4, 8, 0
 PAGETABLE_END(pae_l3_identmap)
@@ -51,7 +56,7 @@ PAGETABLE_END(pae_l3_identmap)
 /* PAE l4 pagetable.  Maps 1x l3 table. */
 PAGETABLE_START(pae_l4_identmap)
         .long pae_l3_identmap + _PAGE_NONLEAF
-        .long 0
+        .long C_BIT_HI
         .fill PAE_L4_PT_ENTRIES - 1, 8, 0
 PAGETABLE_END(pae_l4_identmap)
 
@@ -78,7 +83,7 @@ PAGETABLE_END(pse_l2_identmap)
 PAGETABLE_START(pae32_l3_identmap)
         .rept PAE32_L3_ENTRIES
         .long pae_l2_identmap + (PAE_IDX(pae32_l3_identmap) << PAGE_SHIFT) + _PAGE_PRESENT
-        .long 0
+        .long C_BIT_HI
         .endr
 PAGETABLE_END(pae32_l3_identmap)
 
