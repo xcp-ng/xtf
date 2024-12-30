@@ -238,17 +238,32 @@ static void qemu_console_write(const char *buf, size_t len)
                  : "d" (0x12));
 }
 
-static void xen_console_write(const char *buf, size_t len)
+void xen_console_write(const char *buf, size_t len)
 {
     hypercall_console_write(buf, len);
 }
 
+void sev_console_write(const char *buf, size_t len)
+{
+    size_t i = 0;
+
+    while (i < len)
+    {
+        HYPERCALL1(long, __HYPERVISOR_sev_console_op, buf[i]);
+        i++;
+    }
+}
+
 void arch_setup(void)
 {
+    #if 0
     if ( IS_DEFINED(CONFIG_HVM) && !pvh_start_info )
         register_console_callback(qemu_console_write);
 
     register_console_callback(xen_console_write);
+    #endif
+
+    register_console_callback(sev_console_write);
 
     collect_cpuid(IS_DEFINED(CONFIG_PV) ? pv_cpuid_count : cpuid_count);
 
@@ -256,15 +271,17 @@ void arch_setup(void)
 
     arch_init_traps();
 
-    init_hypercalls();
+    //init_hypercalls();
 
+    /*
     if ( !is_initdomain() )
     {
         setup_pv_console();
         setup_xenbus();
     }
+    */
 
-    map_shared_info();
+    //map_shared_info();
 }
 
 /*
