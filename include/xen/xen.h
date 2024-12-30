@@ -51,6 +51,9 @@
 #define __HYPERVISOR_tmem_op              38
 #define __HYPERVISOR_argo_op              39
 #define __HYPERVISOR_xenpmu_op            40
+#define __HYPERVISOR_dom_coco_op          43
+#define __HYPERVISOR_sev_hox_demo_op      44
+#define __HYPERVISOR_sev_console_op       45
 
 /* Architecture-specific hypercall definitions. */
 #define __HYPERVISOR_arch_0               48
