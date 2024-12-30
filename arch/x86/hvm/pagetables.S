@@ -3,9 +3,9 @@
 #include <arch/page.h>
 
 /* AMD SEV C-bit */
-#define C_BIT (1 << 47)
+#define C_BIT (1 << 51)
 /* AMD SEV C-bit (higher long part) */
-#define C_BIT_HI (C_BIT << 32)
+#define C_BIT_HI (C_BIT >> 32)
 
 #define PAGETABLE_START(sym)   \
         GLOBAL(sym)
