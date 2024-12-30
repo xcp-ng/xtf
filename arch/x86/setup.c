@@ -104,7 +104,7 @@ static void collect_cpuid(cpuid_count_fn_t cpuid_fn)
  * hypervisor cpuid leaves to find correct MSR to requst that Xen writes a
  * hypercall page.
  */
-static void init_hypercalls(void)
+void init_hypercalls(void)
 {
     if ( IS_DEFINED(CONFIG_HVM) )
     {
@@ -143,7 +143,7 @@ static void init_hypercalls(void)
         panic("Hypercall page not initialised correctly\n");
 }
 
-static bool is_initdomain(void)
+bool is_initdomain(void)
 {
     if ( IS_DEFINED(CONFIG_PV) )
         return pv_start_info->flags & SIF_INITDOMAIN;
@@ -151,7 +151,7 @@ static bool is_initdomain(void)
         return pvh_start_info && pvh_start_info->flags & SIF_INITDOMAIN;
 }
 
-static void setup_pv_console(void)
+void setup_pv_console(void)
 {
     xencons_interface_t *cons_ring;
     evtchn_port_t cons_evtchn;
@@ -176,7 +176,7 @@ static void setup_pv_console(void)
     init_pv_console(cons_ring, cons_evtchn);
 }
 
-static void setup_xenbus(void)
+void setup_xenbus(void)
 {
     xenbus_interface_t *xb_ring;
     evtchn_port_t xb_port;
@@ -206,7 +206,7 @@ static void setup_xenbus(void)
     init_xenbus(xb_ring, xb_port);
 }
 
-static void map_shared_info(void)
+void map_shared_info(void)
 {
     int rc;
 
@@ -231,7 +231,7 @@ static void map_shared_info(void)
         panic("Failed to map shared_info: %d\n", rc);
 }
 
-static void qemu_console_write(const char *buf, size_t len)
+void qemu_console_write(const char *buf, size_t len)
 {
     asm volatile("rep; outsb"
                  : "+S" (buf), "+c" (len)
