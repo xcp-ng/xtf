@@ -409,6 +409,21 @@ static inline void flush_tlb(void)
     write_cr3(read_cr3());
 }
 
+static inline uint64_t rdtsc(void)
+{
+#if defined(__x86_64__)
+    uint64_t tsc;
+    asm volatile ("rdtsc" : "=A"(tsc));
+    return tsc;
+#elif defined(__i386__)
+    uint32_t a, d;
+    asm volatile ("rdtsc" : "=a"(a), "=d"(d));
+    return ((uint64_t)d << 32) | a;
+#else
+#error Unknown architecture for rdtsc
+#endif
+}
+
 #endif /* XTF_X86_LIB_H */
 
 /*
