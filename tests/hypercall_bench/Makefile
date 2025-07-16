@@ -2,7 +2,7 @@ include $(ROOT)/build/common.mk
 
 NAME      := hypercall_bench
 CATEGORY  := special
-TEST-ENVS := $(ALL_ENVIRONMENTS)
+TEST-ENVS := hvm64
 
 obj-perenv += main.o
 

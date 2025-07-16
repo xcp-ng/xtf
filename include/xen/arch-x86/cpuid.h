@@ -43,8 +43,10 @@
  * Sub-leaf 0: EBX: vcpu id (iff EAX has XEN_HVM_CPUID_VCPU_ID_PRESENT flag)
  * Sub-leaf 0: ECX: domain id (iff EAX has XEN_HVM_CPUID_DOMID_PRESENT flag)
  */
-/* Hypercalls are using physical addresses instead of linear ones. */
-#define XEN_HVM_CPUID_PHYS_ADDR_ABI    (1u << 7)
+/*
+ * Support for fast HVM ABI.
+ */
+#define XEN_HVM_CPUID_FASTABI          (1u << 7)
 
 #endif /* XEN_PUBLIC_ARCH_X86_CPUID_H */
 
