@@ -17,7 +17,7 @@
 
 const char test_title[] = "Hypercall benchmark";
 
-#define HYP_COUNT 1000000UL
+#define HYP_COUNT 5000000UL
 
 struct vcpu_op_get_runstate_info
 {
@@ -25,6 +25,13 @@ struct vcpu_op_get_runstate_info
     struct vcpu_runstate_info runstate;
 };
 
+static inline uint64_t rdtscp(void) {
+    uint32_t lo, hi;
+    __asm__ volatile ("rdtscp" : "=a"(lo), "=d"(hi) :: "rcx");
+    return ((uint64_t)hi << 32) | lo;
+}
+
+#if defined(CONFIG_HVM)
 static inline
 long xen_hypercall_vcpu_get_runstate_info(enum xen_hypercall_vendor vendor,
                                           struct vcpu_op_get_runstate_info *param)
@@ -56,6 +63,14 @@ long xen_hypercall_vcpu_get_runstate_info(enum xen_hypercall_vendor vendor,
     param->runstate.time[3] = reg8;
     return reg0;
 }
+#else
+static inline
+long xen_hypercall_vcpu_get_runstate_info(enum xen_hypercall_vendor vendor,
+                                          struct vcpu_op_get_runstate_info *param)
+{
+    return -EINVAL;
+}
+#endif
 
 void test_main(void)
 {
@@ -90,35 +105,51 @@ void test_main(void)
         if ( eax & XEN_HVM_CPUID_FASTABI )
             has_fastabi = true;
     }
+    else
+        has_fastabi = false;
 
-    uint64_t prev = rdtsc();
-    vcpu_runstate_info_t ri;
+    #ifdef CONFIG_HVM
     printk("Using traditionnal HVM ABI\n");
+    #else
+    printk("Using PV ABI\n");
+    #endif
+    
+    uint64_t prev, end;
+    
+    vcpu_runstate_info_t runstate;
+    hypercall_vcpu_op(VCPUOP_get_runstate_info, 0, &runstate);
+    prev = runstate.time[RUNSTATE_running];
+
+    vcpu_runstate_info_t ri;
 
     for (unsigned long i = 0; i < HYP_COUNT; i++)
         hypercall_vcpu_op(VCPUOP_get_runstate_info, 0, &ri);
 
-    uint64_t end = rdtsc();
+    hypercall_vcpu_op(VCPUOP_get_runstate_info, 0, &runstate);
+    end = runstate.time[RUNSTATE_running];
 
-    printk("Latest recorded runstate: %d", ri.state);
-    xtf_success("Took %"PRIu64"u cycles\n", end - prev);
+    printk("Latest recorded runstate: %d\n", ri.state);
+    xtf_success("Average: %"PRIu64" ns/hypercall\n", (end - prev) / HYP_COUNT);
 
     if (!has_fastabi)
         return;
 
-    prev = rdtsc();
-    printk("Using FastABI (\"HVMv2\")\n\n");
+    printk("\nUsing FastABI (\"HVMv2\")\n");
+
+    hypercall_vcpu_op(VCPUOP_get_runstate_info, 0, &runstate);
+    prev = runstate.time[RUNSTATE_running];
+
     struct vcpu_op_get_runstate_info op;
     op.vcpuid = 0;
 
     for (unsigned long i = 0; i < HYP_COUNT; i++)
         xen_hypercall_vcpu_get_runstate_info(Intel, &op);
 
-    end = rdtsc();
+    hypercall_vcpu_op(VCPUOP_get_runstate_info, 0, &runstate);
+    end = runstate.time[RUNSTATE_running];
     
-    printk("Latest recorded runstate: %d", op.runstate.state);
-    xtf_success("Took %"PRIu64"u cycles\n", end - prev);
-
+    printk("Latest recorded runstate: %d\n", op.runstate.state);
+    xtf_success("Average: %"PRIu64" ns/hypercall\n", (end - prev) / HYP_COUNT);
 }
 
 /*
