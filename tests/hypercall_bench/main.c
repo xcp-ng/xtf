@@ -19,12 +19,6 @@ const char test_title[] = "Hypercall benchmark";
 
 #define HYP_COUNT 5000000UL
 
-struct vcpu_op_get_runstate_info
-{
-    unsigned long vcpuid;
-    struct vcpu_runstate_info runstate;
-};
-
 static inline uint64_t rdtscp(void) {
     uint32_t lo, hi;
     __asm__ volatile ("rdtscp" : "=a"(lo), "=d"(hi) :: "rcx");
@@ -34,39 +28,40 @@ static inline uint64_t rdtscp(void) {
 #if defined(CONFIG_HVM)
 static inline
 long xen_hypercall_vcpu_get_runstate_info(enum xen_hypercall_vendor vendor,
-                                          struct vcpu_op_get_runstate_info *param)
+                                          struct vcpu_runstate_info *param,
+                                          uint32_t vcpuid)
 {
     register long reg0 __asm__("rax") = __HYPERVISOR_FASTABI_MASK | __HYPERVISOR_vcpu_op;
     register uint64_t reg1 __asm__("rdi") = 4;
-    register uint64_t reg2 __asm__("rsi") = param->vcpuid;
+    register uint64_t reg2 __asm__("rsi") = vcpuid;
     register uint64_t reg3 __asm__("r8");
     register uint64_t reg4 __asm__("r9");
     register uint64_t reg5 __asm__("r10");
     register uint64_t reg6 __asm__("r11");
     register uint64_t reg7 __asm__("r12");
-    register uint64_t reg8 __asm__("r13");
 
     if ( vendor == Intel )
-        __asm__ volatile ("vmcall" : "=r"(reg3), "=r"(reg4), "=r"(reg5), "=r"(reg6), "=r"(reg7), "=r"(reg8), "+r"(reg0)
-                                   : "r"(reg1), "r"(reg2)
+        __asm__ volatile ("vmcall" : "+r"(reg2), "=r"(reg3), "=r"(reg4), "=r"(reg5), "=r"(reg6), "=r"(reg7), "+r"(reg0)
+                                   : "r"(reg1)
                                    : "memory");
     else
-        __asm__ volatile ("vmmcall" : "=r"(reg3), "=r"(reg4), "=r"(reg5), "=r"(reg6), "=r"(reg7), "=r"(reg8), "+r"(reg0)
-                                    : "r"(reg1), "r"(reg2)
+        __asm__ volatile ("vmmcall" : "+r"(reg2), "=r"(reg3), "=r"(reg4), "=r"(reg5), "=r"(reg6), "=r"(reg7), "+r"(reg0)
+                                    : "r"(reg1)
                                     : "memory");
 
-    param->runstate.state = reg3;
-    param->runstate.state_entry_time = reg4;
-    param->runstate.time[0] = reg5;
-    param->runstate.time[1] = reg6;
-    param->runstate.time[2] = reg7;
-    param->runstate.time[3] = reg8;
+    param->state = reg2;
+    param->state_entry_time = reg3;
+    param->time[0] = reg4;
+    param->time[1] = reg5;
+    param->time[2] = reg6;
+    param->time[3] = reg7;
     return reg0;
 }
 #else
 static inline
 long xen_hypercall_vcpu_get_runstate_info(enum xen_hypercall_vendor vendor,
-                                          struct vcpu_op_get_runstate_info *param)
+                                          struct vcpu_runstate_info *param,
+                                          uint32_t vcpuid)
 {
     return -EINVAL;
 }
@@ -139,16 +134,13 @@ void test_main(void)
     hypercall_vcpu_op(VCPUOP_get_runstate_info, 0, &runstate);
     prev = runstate.time[RUNSTATE_running];
 
-    struct vcpu_op_get_runstate_info op;
-    op.vcpuid = 0;
-
     for (unsigned long i = 0; i < HYP_COUNT; i++)
-        xen_hypercall_vcpu_get_runstate_info(Intel, &op);
+        xen_hypercall_vcpu_get_runstate_info(Intel, &ri, 0);
 
     hypercall_vcpu_op(VCPUOP_get_runstate_info, 0, &runstate);
     end = runstate.time[RUNSTATE_running];
     
-    printk("Latest recorded runstate: %d\n", op.runstate.state);
+    printk("Latest recorded runstate: %d\n", runstate.state);
     xtf_success("Average: %"PRIu64" ns/hypercall\n", (end - prev) / HYP_COUNT);
 }
 
