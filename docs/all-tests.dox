@@ -185,6 +185,7 @@ states.
 
 @subpage test-xsa-472-3 - Viridian reference TSC page leak.
 
+@subpage test-xsa-475 - x86: Incorrect input sanitisation in Viridian hypercalls
 
 @section index-utility Utilities
 
